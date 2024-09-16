@@ -11,7 +11,7 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:3001",
+    origin: "https://figma-backend-mm5f.onrender.com",
     methods: ["GET", "POST"],
     credentials: true,
   })
