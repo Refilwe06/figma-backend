@@ -1,5 +1,6 @@
+require("dotenv").config();
 const express = require("express");
-const mysql = require("mysql");
+const mysql = require("mysql2");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const cookieParser = require("cookie-parser");
@@ -11,7 +12,7 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "https://figma-backend-mm5f.onrender.com",
+    origin: "*",
     methods: ["GET", "POST"],
     credentials: true,
   })
@@ -20,22 +21,30 @@ app.use(
 app.use(cookieParser());
 
 const db = mysql.createConnection({
-  host: "localhost",
-  user: "newUser",
-  password: "password",
-  database: "signup",
-});
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+})
 
+
+db.connect((err) => {
+  if (err) {
+    console.error(err.stack)
+  }
+  console.log('Successfully connected to MySQL database');
+});
 const { verify } = jwt;
+
 
 const verifyUser = (req, res, next) => {
   const token = req.cookies.token;
   if (!token) {
-    return res.json({ Error: "WARNING: You have Not been Authenticated" });
+    return res.json({ err: "Session expires, please login" });
   } else {
-    jwt.verify(token, "jwt-secret-key", (err, decoded) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
       if (err) {
-        return res.json({ Error: "Incorrect Token" });
+        return res.json({ err: "Incorrect Token" });
       } else {
         req.name = decoded.name;
         next();
@@ -44,59 +53,64 @@ const verifyUser = (req, res, next) => {
   }
 };
 
-app.get("/", verifyUser, (req, res) => {
-  return res.json({ Status: "Success", name: req.name });
-});
-
 app.post("/register", (req, res) => {
-  const sql = "INSERT INTO login (⁠ name ⁠, ⁠ email ⁠, ⁠ password ⁠) VALUES (?)";
-  bcrypt.hash(req.body.password.toString(), salt, (err, hash) => {
+  console.log(req.body);
+  const { password, name, email } = req.body;
+
+  const sql = "INSERT INTO users (name, email, password) VALUES (?)";
+  bcrypt.hash(password, salt, (err, hash) => {
     if (err) {
-      return res.status(500).json({ Error: "Error hashing password" }); // Changed to a 500 error
+      return res.status(500).json({ err: "Error hashing password" }); // Changed to a 500 error
     }
-    const values = [req.body.name, req.body.email, hash];
+    const values = [name, email, hash];
     // Insert user data into the database
     db.query(sql, [values], (err, result) => {
       if (err) {
-        return res.status(400).json({ Error: "Data Input Error into Server" }); // Changed to a 400 error
+        console.error(err.stack);
+        // Return error message if registration fails
+        err.message = err.message.includes('Duplicate') ? 'Email already exists, please login' : err.message;
+        return res.status(400).json({ err: err.message }); // Changed to a 400 error
       }
       // Return success message if registration is successful
       return res
         .status(200)
-        .json({ Status: "Success", Message: "Registration successful!" });
+        .json({ msg: "Registration successful!" });
     });
   });
 });
 
 app.post("/login", (req, res) => {
-  console.log(req.body);
-  const sql = "SELECT * FROM login WHERE email = ?";
-  db.query(sql, [req.body.email], (err, data) => {
-    if (err) return res.json({ Error: "Login error in server" });
+  const { email, password } = req.body;
+
+  const sql = "SELECT * FROM users WHERE email = ?";
+  db.query(sql, [email], (err, data) => {
+    if (err) return res.json({ err: "Login error in server" });
     if (data.length > 0) {
+      const [user] = data;
       bcrypt.compare(
-        req.body.password.toString(),
-        data[0].password,
-        (err, response) => {
-          if (err) return res.json({ Error: "Password hash error" });
-          if (response) {
-            const name = data[0].name;
-            const token = jwt.sign({ name }, "jwt-secret-key", {
+        password,
+        user.password,
+        (err, passwordMatches) => {
+          console.log(passwordMatches);
+          if (err) return res.json({ err: "Incorrect credentials" });
+          if (passwordMatches) {
+            const token = jwt.sign({ user_id: user.user_id }, process.env.JWT_SECRET, {
               expiresIn: "1d",
             });
-            res.cookie("token", token);
+            res.cookie("token", token, { httpOnly: true });
+            delete user.password;
             return res
               .status(200)
-              .json({ Status: "Success", Message: "Login successful!" });
+              .json({ msg: "Login successful!", user });
           } else {
-            return res.json({
-              Error: "You have entered an Incorrect Password",
+            return res.status(400).json({
+              err: "Incorrect credentials",
             });
           }
         }
       );
     } else {
-      return res.json({ Error: "Email not found" });
+      return res.status(400).json({ err: "Email not found" });
     }
   });
 });
@@ -108,6 +122,6 @@ app.get("/logout", (req, res) => {
     .json({ Status: "Success", Message: "You have been Logged Out!" });
 });
 
-app.listen(3000, () => {
+app.listen(5000, () => {
   console.log("Server is running");
 });
