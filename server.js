@@ -30,7 +30,8 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
-    console.error(err.stack)
+    console.error(err.stack);
+    throw err;
   }
   console.log('Successfully connected to MySQL database');
 });
@@ -54,8 +55,7 @@ const verifyUser = (req, res, next) => {
 };
 
 app.post("/register", (req, res) => {
-  console.log(req.body);
-  const { password, name, email } = req.body;
+  const { password, name, email, rememberMe } = req.body;
 
   const sql = "INSERT INTO users (name, email, password) VALUES (?)";
   bcrypt.hash(password, salt, (err, hash) => {
@@ -72,11 +72,10 @@ app.post("/register", (req, res) => {
         return res.status(400).json({ err: err.message }); // Changed to a 400 error
       }
       // Return success message if registration is successful
-      return res
-        .status(200)
-        .json({ msg: "Registration successful!" });
+      const userQuery = "SELECT * FROM users WHERE user_id = ?";
+      sendUserToClient(res, userQuery, result.insertId, "Registration successful!");
     });
-  });
+  })
 });
 
 app.post("/login", (req, res) => {
@@ -121,6 +120,25 @@ app.get("/logout", (req, res) => {
     .status(200)
     .json({ Status: "Success", Message: "You have been Logged Out!" });
 });
+
+// Reusable function to send user object and message to client
+const sendUserToClient = (res, query, id, msg, rememberMe = false) => {
+  db.query(query, [id], (err, result) => {
+    if (err) {
+      console.error(err.stack);
+      return res.status(400).json({ err: err.message });
+    }
+    const user = result[0];
+    const token = jwt.sign({ user_id: user.user_id }, process.env.JWT_SECRET, {
+      expiresIn: rememberMe ? "30d" : "1d",
+    });
+    res.cookie("token", token, { httpOnly: true });
+    delete user.password;
+    return res
+      .status(200)
+      .json({ msg, user });
+  });
+};
 
 app.listen(5000, () => {
   console.log("Server is running");
