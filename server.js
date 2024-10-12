@@ -1,41 +1,39 @@
 require("dotenv").config();
 const express = require("express");
-const mysql = require("mysql2");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
-
+const passport = require("passport");
+require("./passport");
+const google = require("./google");
+const db = require("./db");
+const cookieSession = require("cookie-session");
 const salt = 10;
 
 const app = express();
 app.use(express.json());
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST"],
-    credentials: true,
-  })
-);
 
 app.use(cookieParser());
 
-const db = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-})
+app.use(
+  cookieSession({
+    secret: process.env.JWT_SECRET,
+    name: 'session',
+    keys: ['ruix'],
+    maxAge: 24 * 60 * 60 * 1000
+  })
+)
 
-
-db.connect((err) => {
-  if (err) {
-    console.error(err.stack);
-    throw err;
-  }
-  console.log('Successfully connected to MySQL database');
-});
-const { verify } = jwt;
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    methods: ["GET", "POST"],
+    credentials: true
+  })
+);
 
 
 const verifyUser = (req, res, next) => {
@@ -139,6 +137,8 @@ const sendUserToClient = (res, query, id, msg, rememberMe = false) => {
       .json({ msg, user });
   });
 };
+
+app.use('/auth', google);
 
 app.listen(5000, () => {
   console.log("Server is running");
