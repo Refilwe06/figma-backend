@@ -12,6 +12,21 @@ const cookieSession = require("cookie-session");
 const salt = 10;
 
 const app = express();
+const allowedOrigins = ['https://ruix-login.onrender.com', 'http://localhost:3000', 'http://localhost:3001'];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin like mobile apps or curl requests
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy does not allow access from this origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true, // allow cookies and authentication credentials
+}));
+
 app.use(express.json());
 
 app.use(cookieParser());
@@ -28,20 +43,6 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-const allowedOrigins = ['https://ruix-login.onrender.com', 'http://localhost:3001'];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin like mobile apps or curl requests
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy does not allow access from this origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true, // allow cookies and authentication credentials
-}));
 
 const verifyToken = (req, res, next) => {
   const token = req.cookies.token; // assuming cookie-parser is used
