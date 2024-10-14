@@ -38,7 +38,6 @@ passport.use(new GoogleStrategy({
 
 // Create a session using the unique google_id
 passport.serializeUser((user, done) => {
-    console.log(user.google_id);
     process.nextTick(function () {
         return done(null, user.google_id);
     });

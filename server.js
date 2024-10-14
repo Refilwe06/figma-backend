@@ -35,22 +35,21 @@ app.use(
   })
 );
 
-
-const verifyUser = (req, res, next) => {
-  const token = req.cookies.token;
+const verifyToken = (req, res, next) => {
+  const token = req.cookies.token; // assuming cookie-parser is used
   if (!token) {
-    return res.json({ err: "Session expires, please login" });
-  } else {
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-      if (err) {
-        return res.json({ err: "Incorrect Token" });
-      } else {
-        req.name = decoded.name;
-        next();
-      }
-    });
+    return res.status(401).json({ message: 'Unauthorized' });
   }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: 'Token expired or invalid' });
+    }
+    req.user = decoded; // attach decoded token (user) to request
+    next();
+  });
 };
+
 
 app.post("/register", (req, res) => {
   const { password, name, email, rememberMe } = req.body;
@@ -88,17 +87,16 @@ app.post("/login", (req, res) => {
         password,
         user.password,
         (err, passwordMatches) => {
-          console.log(passwordMatches);
           if (err) return res.json({ err: "Incorrect credentials" });
           if (passwordMatches) {
             const token = jwt.sign({ user_id: user.user_id }, process.env.JWT_SECRET, {
               expiresIn: "1d",
             });
-            res.cookie("token", token, { httpOnly: true });
+            res.cookie("token", token, { httpOnly: false });
             delete user.password;
             return res
               .status(200)
-              .json({ msg: "Login successful!", user });
+              .json({ msg: "Login successful!", user, token });
           } else {
             return res.status(400).json({
               err: "Incorrect credentials",
@@ -130,15 +128,17 @@ const sendUserToClient = (res, query, id, msg, rememberMe = false) => {
     const token = jwt.sign({ user_id: user.user_id }, process.env.JWT_SECRET, {
       expiresIn: rememberMe ? "30d" : "1d",
     });
-    res.cookie("token", token, { httpOnly: true });
+    res.cookie("token", token, { httpOnly: false });
     delete user.password;
     return res
       .status(200)
-      .json({ msg, user });
+      .json({ msg, user, token });
   });
 };
 
 app.use('/auth', google);
+app.use(verifyToken);
+
 
 app.listen(5000, () => {
   console.log("Server is running");
