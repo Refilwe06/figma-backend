@@ -12,20 +12,14 @@ const cookieSession = require("cookie-session");
 const salt = 10;
 
 const app = express();
-const allowedOrigins = ['https://ruix-login.onrender.com', 'http://localhost:3000', 'http://localhost:3001'];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin like mobile apps or curl requests
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy does not allow access from this origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true, // allow cookies and authentication credentials
-}));
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    methods: ["GET", "POST"],
+    credentials: true
+  })
+);
 
 app.use(express.json());
 
