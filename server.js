@@ -24,7 +24,7 @@ app.use(
 app.use(express.json());
 
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Origin', process.env.CLIENT_URL);
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });
@@ -63,7 +63,7 @@ const verifyToken = (req, res, next) => {
 app.post("/register", (req, res) => {
   const { password, name, email, rememberMe } = req.body;
 
-  const sql = "INSERT INTO users (name, email, password) VALUES (?)";
+  const sql = "INSERT INTO ruix_users (name, email, password) VALUES (?)";
   bcrypt.hash(password, salt, (err, hash) => {
     if (err) {
       return res.status(500).json({ err: "Error hashing password" }); // Changed to a 500 error
@@ -78,7 +78,7 @@ app.post("/register", (req, res) => {
         return res.status(400).json({ err: err.message }); // Changed to a 400 error
       }
       // Return success message if registration is successful
-      const userQuery = "SELECT * FROM users WHERE user_id = ?";
+      const userQuery = "SELECT * FROM ruix_users WHERE user_id = ?";
       sendUserToClient(res, userQuery, result.insertId, "Registration successful!");
     });
   })
@@ -87,7 +87,7 @@ app.post("/register", (req, res) => {
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
 
-  const sql = "SELECT * FROM users WHERE email = ?";
+  const sql = "SELECT * FROM ruix_users WHERE email = ?";
   db.query(sql, [email], (err, data) => {
     if (err) return res.json({ err: "Login error in server" });
     if (data.length > 0) {

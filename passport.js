@@ -11,7 +11,7 @@ passport.use(new GoogleStrategy({
     function (accessToken, refreshToken, profile, cb) {
         const { name, email } = profile._json;
 
-        db.query('SELECT * FROM users WHERE google_id = ?', [profile.id], (err, results) => {
+        db.query('SELECT * FROM ruix_users WHERE google_id = ?', [profile.id], (err, results) => {
             if (err) return cb(err);
 
             if (results.length > 0) {
@@ -25,7 +25,7 @@ passport.use(new GoogleStrategy({
                     email
                 };
 
-                db.query('INSERT INTO users SET ?', newUser, (err, result) => {
+                db.query('INSERT INTO ruix_users SET ?', newUser, (err, result) => {
                     if (err) return cb(err);
                     newUser.id = result.insertId;
                     return cb(null, newUser);
@@ -45,7 +45,7 @@ passport.serializeUser((user, done) => {
 
 // Deserialize user from session (retrieve user from DB)
 passport.deserializeUser((id, done) => {
-    db.query('SELECT * FROM users WHERE google_id = ?', [id], (err, results) => {
+    db.query('SELECT * FROM ruix_users WHERE google_id = ?', [id], (err, results) => {
         if (err) return done(err);
 
         if (results.length === 0) return done(null, false);  // No user found
