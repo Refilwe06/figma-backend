@@ -36,7 +36,10 @@ app.use(
     secret: process.env.JWT_SECRET,
     name: 'session',
     keys: ['ruix'],
-    maxAge: 24 * 60 * 60 * 1000
+    maxAge: 24 * 60 * 60 * 1000,
+    httpOnly: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production', // Ensure secure cookie for HTTPS in production
+    sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', // Required for cross-site cookies in modern browsers
   })
 )
 
