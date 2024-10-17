@@ -29,7 +29,7 @@ router.get('/google/callback', passport.authenticate('google', { failureRedirect
     const user = req.user; // User data returned from Google
     const token = JWT.sign(user.google_id, process.env.JWT_SECRET);
     // Set the cookie
-    res.cookie('token', token, { httpOnly: false });
+    res.cookie('token', token, { httpOnly: false, secure: false });
 
     // Redirect to the profile page
     res.redirect(process.env.CLIENT_URL + '/profile');
