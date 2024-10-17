@@ -1,5 +1,6 @@
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const passport = require('passport');
+const jwt = require('jsonwebtoken'); // Import JWT
 const db = require("./db");
 
 passport.use(new GoogleStrategy({
@@ -36,19 +37,21 @@ passport.use(new GoogleStrategy({
     }
 ));
 
-// Create a session using the unique google_id
+// Instead of serializeUser and deserializeUser, generate a JWT upon successful login
 passport.serializeUser((user, done) => {
-    process.nextTick(function () {
-        return done(null, user.google_id);
-    });
+    // Sign the JWT token with user details
+    const token = jwt.sign(
+        { google_id: user.google_id, name: user.name, email: user.email },
+        process.env.JWT_SECRET,
+        { expiresIn: '1d' } // Token valid for 1 day
+    );
+    return done(null, token); // Pass the token instead of the user ID
 });
 
-// Deserialize user from session (retrieve user from DB)
-passport.deserializeUser((id, done) => {
-    db.query('SELECT * FROM ruix_users WHERE google_id = ?', [id], (err, results) => {
-        if (err) return done(err);
-
-        if (results.length === 0) return done(null, false);  // No user found
-        return done(null, results[0]);  // Return user object
+passport.deserializeUser((token, done) => {
+    // No need to deserialize, as JWT carries the payload
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) return done(err, false); // Invalid token
+        return done(null, decoded); // Pass the decoded token (user data)
     });
 });

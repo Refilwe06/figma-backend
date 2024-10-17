@@ -1,48 +1,29 @@
 const router = require('express').Router();
 const passport = require('passport');
-const JWT = require('jsonwebtoken')
+const JWT = require('jsonwebtoken');
+
+// Endpoint for login failure
 router.get('/login/failed', (req, res) => {
     res.status(401).send({
         error: true,
         msg: 'Login failed'
-    })
-})
-
-router.get('/login/success', (req, res) => {
-    console.log('Session ID:', req.sessionID);  // log session ID
-    console.log('Session Data:', req.session);  // log entire session data
-    console.log('Authenticated User:', req.user);  // log req.user if authenticated
-
-    if (req.user) {
-        res.send({
-            msg: 'Logged in successfully',
-            user: req.user,
-            token: req.cookies.token
-        });
-    } else {
-        res.status(401).send({ error: true, msg: 'Not Authorized, Please Log In' });
-    }
+    });
 });
 
+// Google OAuth callback
 router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login' }), (req, res) => {
-    // On successful login, generate a cookie and redirect
-    const user = req.user; // User data returned from Google
-    const token = JWT.sign(user.google_id, process.env.JWT_SECRET);
-    // Set the cookie
-    res.cookie('token', token, { httpOnly: false, secure: false });
+    const jwt_token = JWT.sign({ googleId: req.user.google_id }, process.env.JWT_SECRET, { expiresIn: '10s' });
 
-    // Redirect to the profile page
-    res.redirect(process.env.CLIENT_URL + '/profile');
+    res.redirect(`${process.env.CLIENT_URL}/profile?token=${jwt_token}`); // Redirect with token as query parameter
 });
+
+
+// Initiate Google OAuth
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
+// Logout route
 router.get('/logout', (req, res) => {
-    console.log('Before logout:', req.isAuthenticated());
-    req.logout();
-    res.clearCookie('token'); // Clear the cookie
-    res.send({ msg: 'Logged out successfully' })
+    res.send({ msg: 'Logged out successfully' });
 });
-
-
 
 module.exports = router;
